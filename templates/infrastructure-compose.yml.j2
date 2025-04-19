@@ -1,4 +1,19 @@
 services:
+  postgis:
+    image: postgis
+    container_name: postgis
+    restart: unless-stopped
+    environment:
+      - PGDATA=/data/postgres
+      - POSTGRES_USER=${POSTGRES_ADMIN_USERNAME}
+      - POSTGRES_PASSWORD=${POSTGRES_ADMIN_PASSWORD}
+    networks:
+      - network
+    ports:
+      - 5432:5432
+    volumes:
+      - postgres-data:/data/postgres
+
   ultrafeeder:
     image: ghcr.io/sdr-enthusiasts/docker-adsb-ultrafeeder
     # Note - if you want to enable telegraf for use with InfluxDB/Prometheus and Grafana,
@@ -36,7 +51,7 @@ services:
       - TAR1090_DEFAULTCENTERLAT=${LAT}
       - TAR1090_DEFAULTCENTERLON=${LON}
       - TAR1090_MESSAGERATEINTITLE=true
-      - TAR1090_PAGETITLE=${ADMIN_USERNAME}
+      - TAR1090_PAGETITLE=DFLD
       - TAR1090_PLANECOUNTINTITLE=true
       - TAR1090_ENABLE_AC_DB=true
       - TAR1090_FLIGHTAWARELINKS=true
@@ -51,8 +66,8 @@ services:
     # GRAPHS1090 (Decoder and System Status Web Page) parameters:
       - GRAPHS1090_DARKMODE=true
     volumes:
-      - ${DOCKER_EXTERNAL_ROOT}/ultrafeeder/globe_history:/var/globe_history
-      - ${DOCKER_EXTERNAL_ROOT}/ultrafeeder/graphs1090:/var/lib/collectd
+      - ultrafeeder-globe_history:/var/globe_history
+      - ultrafeeder-graphs1090:/var/lib/collectd
       - /proc/diskstats:/proc/diskstats:ro
       - /dev/bus/usb:/dev/bus/usb
     tmpfs:
@@ -72,12 +87,12 @@ services:
       - 8086:8086
       - 8088:8088
     volumes:
-      - ${DOCKER_EXTERNAL_ROOT}/influxdb/data:/var/lib/influxdb
-      - ${DOCKER_EXTERNAL_ROOT}/influxdb/config:/etc/influxdb
+      - influxdb-data:/var/lib/influxdb
+      - influxdb-config:/etc/influxdb
     environment:
       - INFLUXDB_DB=${INFLUXDB_DATABASE}
-      - INFLUXDB_ADMIN_USER=${ADMIN_USERNAME}
-      - INFLUXDB_ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - INFLUXDB_ADMIN_USER=${INFLUX_ADMIN_USERNAME}
+      - INFLUXDB_ADMIN_PASSWORD=${INFLUX_ADMIN_PASSWORD}
 
   grafana:
     image: grafana/grafana:latest
@@ -85,33 +100,19 @@ services:
     restart: unless-stopped
     environment:
       - TZ=${TZ}
-      - GF_SECURITY_ADMIN_USER=${ADMIN_USERNAME}
-      - GF_SECURITY_ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USERNAME}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
     user: ${UID}:${GID}
     ports:
       - 3000:3000
     networks:
       - network
     volumes:
-      - ${DOCKER_EXTERNAL_ROOT}/grafana/data:/var/lib/grafana
-      - ${DOCKER_EXTERNAL_ROOT}/grafana/provisioning:/etc/grafana/provisioning
+      - grafana-data:/var/lib/grafana
+      - grafana-provisioning:/etc/grafana/provisioning
     depends_on:
       - influxdb
-
-  postgis:
-    image: postgis
-    container_name: postgis
-    restart: unless-stopped
-    environment:
-      - PGDATA=/data/postgres
-      - POSTGRES_PASSWORD=${ADMIN_PASSWORD}
-      - POSTGRES_USER=${ADMIN_USERNAME}
-    networks:
-      - network
-    ports:
-      - 5432:5432
-    volumes:
-      - ${DOCKER_EXTERNAL_ROOT}/postgres/data:/data/postgres
+      - postgis
 
   telegraf:
     image: telegraf:latest
@@ -120,9 +121,9 @@ services:
     environment:
       - TZ=${TZ}
       - INFLUXDB_DB=${INFLUX_TELEGRAF_DATABASE}
-      - INFLUXDB_URL=http://influxdb:8086
-      - INFLUXDB_USER=${ADMIN_USERNAME}
-      - INFLUXDB_USER_PASSWORD=${ADMIN_PASSWORD}
+      - INFLUXDB_URL=http://${INFLUXDB_SERVERNAME}:${INFLUXDB_SERVERPORT}
+      - INFLUXDB_USER=${INFLUX_ADMIN_USERNAME}
+      - INFLUXDB_USER_PASSWORD=${INFLUX_ADMIN_PASSWORD}
     user: ${UID}:${GID}
     ports:
       - 8125:8125
@@ -131,12 +132,19 @@ services:
     networks:
       - network
     volumes:
-      - ${DOCKER_EXTERNAL_ROOT}/telegraf:/etc/telegraf
+      - ${DOCKER_EXTERNAL_ROOT}/telegraf.conf:/etc/telegraf/telegraf.conf:ro
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       - influxdb
 
-
+volumes:
+  ultrafeeder-globe_history:
+  ultrafeeder-graphs1090:
+  influxdb-data:
+  influxdb-config:
+  grafana-data:
+  grafana-provisioning:
+  postgres-data:
 
 networks:
     network:

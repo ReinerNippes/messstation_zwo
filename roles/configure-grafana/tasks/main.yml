@@ -1,0 +1,96 @@
+---
+
+- name: Check grafana health
+  ansible.builtin.uri:
+    url: "http://localhost:3000/api/health"
+    method: GET
+    status_code:
+      - 200
+      - -1
+  register: grafana_health
+  until: grafana_health.status == 200
+  retries: 30
+  delay: 2
+
+#
+# DFLD dashboard
+#
+
+- name: Create influxdb datasource
+  community.grafana.grafana_datasource:
+    name: "influxdb"
+    grafana_url: "http://localhost:3000/"
+    grafana_user: "{{ grafana_username }}"
+    grafana_password: "{{ grafana_password }}"
+    user: "{{ influxdb_username }}"
+    password: "{{ influxdb_password }}"
+    ds_type: "influxdb"
+    ds_url: "http://influxdb:8086/"
+    database: "dfld"
+    uid: "cectojnfyi3ggd"
+
+- name: Create postgres datasource
+  community.grafana.grafana_datasource:
+    name: "postgres"
+    grafana_url: "http://localhost:3000/"
+    grafana_user: "{{ grafana_username }}"
+    grafana_password: "{{ grafana_password }}"
+    user: "{{ postgres_username }}"
+    password: "{{ postgres_password }}"
+    ds_type: "postgres"
+    ds_url: "postgis:5432"
+    database: "dfld"
+    uid: "degnp01h2dnuof"
+
+- name: Copy dashboard file to remote host
+  ansible.builtin.copy:
+    src: grafana-dfld.json
+    dest: "{{ dfld_dir }}"
+    owner: "{{ dfld_user }}"
+    group: "{{ dfld_user }}"
+    mode: "0600"
+
+- name: Import Grafana dashboard
+  community.grafana.grafana_dashboard:
+    grafana_url: "http://localhost:3000/"
+    url_username: "{{ grafana_username }}"
+    url_password: "{{ grafana_password }}"
+    state: present
+    commit_message: Updated by ansible
+    overwrite: true
+    path: "{{ dfld_dir }}/grafana-dfld.json"
+
+#
+# System dashboard
+#
+
+- name: Create influxdb datasource
+  community.grafana.grafana_datasource:
+    name: "influxdb-system"
+    grafana_url: "http://localhost:3000/"
+    grafana_user: "{{ grafana_username }}"
+    grafana_password: "{{ grafana_password }}"
+    user: "{{ influxdb_username }}"
+    password: "{{ influxdb_password }}"
+    ds_type: "influxdb"
+    ds_url: "http://influxdb:8086/"
+    database: "local_monitoring"
+    uid: "def0lj80ybny8f"
+
+- name: Copy dashboard file to remote host
+  ansible.builtin.copy:
+    src: grafana-system.json
+    dest: "{{ dfld_dir }}"
+    owner: "{{ dfld_user }}"
+    group: "{{ dfld_group }}"
+    mode: "0600"
+
+- name: Import Grafana dashboard
+  community.grafana.grafana_dashboard:
+    grafana_url: "http://localhost:3000/"
+    url_username: "{{ grafana_username }}"
+    url_password: "{{ grafana_password }}"
+    state: present
+    commit_message: Updated by ansible
+    overwrite: true
+    path: "{{ dfld_dir }}/grafana-system.json"

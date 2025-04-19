@@ -1,0 +1,32 @@
+all:
+  vars:
+
+    station_lon: "0.0"
+    station_lat: "0.0"
+    station_alt: "0.0"
+
+    dfld_user: "dfld"
+    dfld_group: "dfld"
+
+    dfld_dir: "/opt/dfld"
+
+    portainer_username: "{{ dfld_user }}"
+    portainer_password: "{{ dfld_user }}{{ dfld_user }}{{ dfld_user }}"
+
+    grafana_username: "{{ dfld_user }}"
+    grafana_password: "{{ dfld_user }}"
+
+    influxdb_username: "{{ dfld_user }}"
+    influxdb_password: "{{ dfld_user }}"
+
+    postgres_username: "{{ dfld_user }}"
+    postgres_password: "{{ dfld_user }}"
+    postgres_database: "dfld"
+
+    #
+    # ansible part
+    #
+    ansible_sudo_pass: "{{ dfld_user }}"
+    ansible_user: "{{ dfld_user }}"
+    ansible_ssh_pass: "{{ dfld_user }}"
+
